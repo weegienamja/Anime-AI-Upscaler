@@ -1,171 +1,220 @@
-# waifu2x ncnn Vulkan
+# Anime AI Upscaler
 
-![CI](https://github.com/nihui/waifu2x-ncnn-vulkan/workflows/CI/badge.svg)
-![download](https://img.shields.io/github/downloads/nihui/waifu2x-ncnn-vulkan/total.svg)
+A local desktop application for AI-powered anime upscaling and frame interpolation. Built with Electron + React + TypeScript. **All processing runs locally on your GPU** — no cloud APIs, no uploads, no subscriptions.
 
-ncnn implementation of waifu2x converter. Runs fast on Intel / AMD / NVIDIA / Apple-Silicon with Vulkan API.
+![Electron](https://img.shields.io/badge/Electron-28-47848F?logo=electron&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-waifu2x-ncnn-vulkan uses [ncnn project](https://github.com/Tencent/ncnn) as the universal neural network inference framework.
+---
 
-## [Download](https://github.com/nihui/waifu2x-ncnn-vulkan/releases)
+## Features
 
-Download Windows/Linux/macOS Executable for Intel/AMD/NVIDIA/Apple-Silicon GPU
+### Multi-Engine Upscaling
 
-**https://github.com/nihui/waifu2x-ncnn-vulkan/releases**
+| Engine | Backend | Best For | Scales |
+|---|---|---|---|
+| **Waifu2x** | ncnn-vulkan | Anime art, general denoising | 1×, 2×, 4×, 8× |
+| **Real-ESRGAN** | ncnn-vulkan | Photographic & anime content | 2×, 4×, 8× |
+| **Real-CUGAN** | ncnn-vulkan | Anime with fine detail preservation | 1×, 2×, 4×, 8× |
+| **Anime4K** | Anime4KCPP | Fast anime upscaling | 2×, 4×, 8× |
+| **SwinIR** | PyTorch | High-quality restoration | 2×, 4× |
+| **HAT** | PyTorch | State-of-the-art super-resolution | 2×, 4×, 8× |
 
-This package includes all the binaries and models required. It is portable, so no CUDA or Caffe runtime environment is needed :)
+> Scales above 2× are achieved automatically via multi-pass processing (sequential 2× passes).
 
-## Usages
+### Frame Interpolation (Motion Smoothing)
 
-### Example Command
+- **GMFSS_Fortuna** AI-powered frame interpolation
+- Boost video from 24fps → 48/60/120fps with smooth intermediate frames
+- Timestamp-based frame placement for accurate non-integer multipliers (e.g. 24→60fps)
+- Three quality modes: Fast, Balanced, Best (Ensemble)
+- Scene change detection (Auto/Strict/Off) to prevent blending across cuts
+- Three pipeline orders:
+  - **Interpolate Only** — frame interpolation without any upscaling
+  - **Interpolate → Upscale** — interpolate at original resolution, then upscale (faster, less VRAM)
+  - **Upscale → Interpolate** — upscale first, then interpolate at high resolution (best quality)
 
-```shell
-waifu2x-ncnn-vulkan.exe -i input.jpg -o output.png -n 2 -s 2
+### Video Pipeline
+
+- Full video workflow: **probe → extract → process → reassemble**
+- Automatic **deinterlacing** (bwdif filter) for interlaced anime sources (DVD/broadcast)
+- Audio preservation with automatic re-encoding when FPS changes
+- Smart temp directory selection with disk space pre-check
+- Progress tracking through every pipeline stage
+
+### Desktop Application
+
+- Drag-and-drop file input (images and videos)
+- Real-time job queue with progress, cancel, and retry
+- Before/after preview comparison (256×256 crop)
+- Preset management (save/load processing configurations)
+- Engine auto-installer (downloads binaries from GitHub releases)
+- Multi-GPU support with Vulkan device selection
+- Job history with SQLite persistence
+- System monitoring (GPU, CPU, RAM, disk)
+- OOM recovery — automatic retry with reduced tile size on VRAM errors
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **Node.js** 18+ and npm
+- **FFmpeg** (for video processing) — install via `winget install ffmpeg` or download from [ffmpeg.org](https://ffmpeg.org/)
+- **GPU** with Vulkan support (NVIDIA, AMD, or Intel)
+
+### Install & Run
+
+```bash
+cd app
+npm install
+npm run build
+npx electron .
 ```
 
-### Full Usages
+### For Development (with hot reload)
 
-```console
-Usage: waifu2x-ncnn-vulkan -i infile -o outfile [options]...
-
-  -h                   show this help
-  -v                   verbose output
-  -i input-path        input image path (jpg/png/webp) or directory
-  -o output-path       output image path (jpg/png/webp) or directory
-  -n noise-level       denoise level (-1/0/1/2/3, default=0)
-  -s scale             upscale ratio (1/2/4/8/16/32, default=2)
-  -t tile-size         tile size (>=32/0=auto, default=0) can be 0,0,0 for multi-gpu
-  -m model-path        waifu2x model path (default=models-cunet)
-  -g gpu-id            gpu device to use (-1=cpu, default=auto) can be 0,1,2 for multi-gpu
-  -j load:proc:save    thread count for load/proc/save (default=1:2:2) can be 1:2,2,2:2 for multi-gpu
-  -x                   enable tta mode
-  -f format            output image format (jpg/png/webp, default=ext/png)
+```bash
+cd app
+npm run dev
 ```
 
-- `input-path` and `output-path` accept either file path or directory path
-- `noise-level` = noise level, large value means strong denoise effect, -1 = no effect
-- `scale` = scale level, 1 = no scaling, 2 = upscale 2x
-- `tile-size` = tile size, use smaller value to reduce GPU memory usage, default selects automatically
-- `load:proc:save` = thread count for the three stages (image decoding + waifu2x upscaling + image encoding), using larger values may increase GPU usage and consume more GPU memory. You can tune this configuration with "4:4:4" for many small-size images, and "2:2:2" for large-size images. The default setting usually works fine for most situations. If you find that your GPU is hungry, try increasing thread count to achieve faster processing.
-- `format` = the format of the image to be output, png is better supported, however webp generally yields smaller file sizes, both are losslessly encoded
+### Engine Setup
 
-If you encounter a crash or error, try upgrading your GPU driver:
+On first launch, the app detects available engines in the `bin/` directory. Missing engines can be installed directly from the Settings page using the built-in installer.
 
-- Intel: https://downloadcenter.intel.com/product/80939/Graphics-Drivers
-- AMD: https://www.amd.com/en/support
-- NVIDIA: https://www.nvidia.com/Download/index.aspx
+**Bundled engine locations:**
 
-## Build from Source
-
-1. (macOS only) Download and setup the Vulkan SDK from https://vulkan.lunarg.com/
-
-2. Clone this project with all submodules
-
-```shell
-git clone https://github.com/nihui/waifu2x-ncnn-vulkan.git
-cd waifu2x-ncnn-vulkan
-git submodule update --init --recursive
+```
+bin/
+├── waifu2x-ncnn-vulkan-*/          # Waifu2x
+├── realesrgan-ncnn-vulkan-*/        # Real-ESRGAN
+├── realcugan-ncnn-vulkan-*/         # Real-CUGAN
+└── Anime4KCPP/                      # Anime4K
 ```
 
-3. Build with CMake
-  - You can pass -DUSE_STATIC_MOLTENVK=ON option to avoid linking the vulkan loader library on macOS
+### Frame Interpolation Setup (Optional)
 
-```shell
-mkdir build
-cd build
-cmake ../src
-cmake --build . -j 4
+Frame interpolation requires a separate Python environment:
+
+1. Install **Python 3.11** (3.12+ may have PyTorch compatibility issues)
+2. Install PyTorch with CUDA:
+   ```bash
+   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+   ```
+3. Clone [GMFSS_Fortuna](https://github.com/98mxr/GMFSS_Fortuna) and download model weights
+4. Set the Python path and GMFSS directory in **Settings → Frame Interpolation**
+
+---
+
+## Architecture
+
+```
+app/
+├── src/
+│   ├── main/                        # Electron main process
+│   │   ├── index.ts                 # Window creation, app lifecycle
+│   │   ├── engineManager.ts         # Engine registry & detection
+│   │   ├── engineInstaller.ts       # GitHub release downloader
+│   │   ├── engines/                 # Engine adapters
+│   │   │   ├── waifu2x.ts
+│   │   │   ├── realesrgan.ts
+│   │   │   ├── realcugan.ts
+│   │   │   ├── anime4k.ts
+│   │   │   ├── swinir.ts
+│   │   │   └── hat.ts
+│   │   ├── jobRunner.ts             # Pipeline orchestration
+│   │   ├── queueManager.ts          # Job queue with concurrency
+│   │   ├── ffmpegPipeline.ts        # Video probe/extract/reassemble
+│   │   ├── database.ts              # SQLite settings & history
+│   │   ├── ipcHandlers.ts           # IPC bridge to renderer
+│   │   ├── systemInfo.ts            # GPU/CPU/RAM detection
+│   │   └── licenseClient.ts         # Patreon license auth
+│   ├── renderer/                    # React UI
+│   │   ├── App.tsx
+│   │   ├── components/
+│   │   │   ├── NewJob.tsx           # File input, engine config, interpolation
+│   │   │   ├── QueuePage.tsx        # Live queue with reorder/cancel
+│   │   │   ├── PreviewPanel.tsx     # Before/after comparison
+│   │   │   ├── PresetManager.tsx    # Save/load presets
+│   │   │   ├── HistoryPage.tsx      # Job history
+│   │   │   ├── SettingsPage.tsx     # Paths, defaults, interpolation config
+│   │   │   └── SystemPage.tsx       # Hardware info
+│   │   └── styles.css
+│   └── shared/                      # Shared types & presets
+│       ├── types.ts
+│       └── presets.ts
+├── tools/
+│   └── gmfss/
+│       └── run_gmfss.py             # GMFSS_Fortuna Python wrapper
+└── package.json
+
+license-server/                      # Patreon license server (Express + SQLite)
+└── src/
 ```
 
-## Speed Comparison with waifu2x-caffe-cui
+---
 
-### Environment
+## Adding a New Engine
 
-- Windows 10 1809
-- AMD R7-1700
-- NVIDIA GTX-1070
-- NVIDIA driver 419.67
-- CUDA 10.1.105
-- cuDNN 10.1
+1. Create `app/src/main/engines/myengine.ts` implementing the `UpscaleEngine` interface
+2. Export it from `app/src/main/engines/index.ts`
+3. Register it in `app/src/main/index.ts` → `initEngines()`
+4. Add the engine ID to the `EngineId` type in `app/src/shared/types.ts`
+5. The UI picks it up automatically
 
-```powershell
-Measure-Command { waifu2x-ncnn-vulkan.exe -i input.png -o output.png -n 2 -s 2 -t [block size] -m [model dir] }
-```
+---
 
-```powershell
-Measure-Command { waifu2x-caffe-cui.exe -t 0 --gpu 0 -b 1 -c [block size] -p cudnn --model_dir [model dir] -s 2 -n 2 -m noise_scale -i input.png -o output.png }
-```
+## Configuration
 
-### cunet
+All settings are managed through the **Settings** page:
 
-||Image Size|Target Size|Block Size|Total Time(s)|GPU Memory(MB)|
-|---|---|---|---|---|---|
-|waifu2x-ncnn-vulkan|200x200|400x400|400/200/100|0.86/0.86/0.82|638/638/197|
-|waifu2x-caffe-cui|200x200|400x400|400/200/100|2.54/2.39/2.36|3017/936/843|
-|waifu2x-ncnn-vulkan|400x400|800x800|400/200/100|1.17/1.04/1.02|2430/638/197|
-|waifu2x-caffe-cui|400x400|800x800|400/200/100|2.91/2.43/2.7|3202/1389/1178|
-|waifu2x-ncnn-vulkan|1000x1000|2000x2000|400/200/100|2.35/2.26/2.46|2430/638/197|
-|waifu2x-caffe-cui|1000x1000|2000x2000|400/200/100|4.04/3.79/4.35|3258/1582/1175|
-|waifu2x-ncnn-vulkan|2000x2000|4000x4000|400/200/100|6.46/6.59/7.49|2430/686/213|
-|waifu2x-caffe-cui|2000x2000|4000x4000|400/200/100|7.01/7.54/10.11|3258/1499/1200|
-|waifu2x-ncnn-vulkan|4000x4000|8000x8000|400/200/100|22.78/23.78/27.61|2448/654/213|
-|waifu2x-caffe-cui|4000x4000|8000x8000|400/200/100|18.45/21.85/31.82|3325/1652/1236|
+| Setting | Description |
+|---|---|
+| Engine Paths | Auto-detected from `bin/`, or set manually |
+| FFmpeg Path | Path to ffmpeg executable |
+| Output Directory | Default output location |
+| Temp Directory | Working directory for frame extraction (needs free space) |
+| GPU Selection | Choose which Vulkan GPU to use |
+| Python Path | Python 3.11 executable for frame interpolation |
+| GMFSS Path | Path to GMFSS_Fortuna repository |
 
-### upconv_7_anime_style_art_rgb
+---
 
-||Image Size|Target Size|Block Size|Total Time(s)|GPU Memory(MB)|
-|---|---|---|---|---|---|
-|waifu2x-ncnn-vulkan|200x200|400x400|400/200/100|0.74/0.75/0.72|482/482/142|
-|waifu2x-caffe-cui|200x200|400x400|400/200/100|2.04/1.99/1.99|995/546/459|
-|waifu2x-ncnn-vulkan|400x400|800x800|400/200/100|0.95/0.83/0.81|1762/482/142|
-|waifu2x-caffe-cui|400x400|800x800|400/200/100|2.08/2.12/2.11|995/546/459|
-|waifu2x-ncnn-vulkan|1000x1000|2000x2000|400/200/100|1.52/1.41/1.44|1778/482/142|
-|waifu2x-caffe-cui|1000x1000|2000x2000|400/200/100|2.72/2.60/2.68|1015/570/459|
-|waifu2x-ncnn-vulkan|2000x2000|4000x4000|400/200/100|3.45/3.42/3.63|1778/482/142|
-|waifu2x-caffe-cui|2000x2000|4000x4000|400/200/100|3.90/4.01/4.35|1015/521/462|
-|waifu2x-ncnn-vulkan|4000x4000|8000x8000|400/200/100|11.16/11.29/12.07|1796/498/158|
-|waifu2x-caffe-cui|4000x4000|8000x8000|400/200/100|9.24/9.81/11.16|995/546/436|
+## Video Processing Notes
 
-## Sample Images
+- **Deinterlacing**: Set to **Auto** (default) to automatically detect and deinterlace interlaced sources. Use **Always On** for sources where auto-detection fails.
+- **Disk Space**: Video processing extracts all frames as PNG. A 24fps, 10-minute video at 1080p needs ~30–50 GB of temp space. Use the Settings page to point the temp directory to a drive with enough room.
+- **Multi-pass Upscaling**: Scales above 2× run multiple sequential passes (e.g. 8× = three 2× passes). Each pass doubles the resolution.
 
-### Original Image
+---
 
-![origin](images/0.jpg)
+## Tech Stack
 
-### Upscale 2x with ImageMagick
+- **Electron 28** — cross-platform desktop shell
+- **React 18** — UI framework
+- **TypeScript 5.3** — type safety across main and renderer
+- **Webpack 5** — renderer bundling
+- **better-sqlite3** — fast embedded database
+- **ncnn + Vulkan** — GPU-accelerated neural network inference
+- **FFmpeg** — video processing pipeline
+- **GMFSS_Fortuna + PyTorch** — AI frame interpolation
 
-```shell
-convert origin.jpg -resize 200% output.png
-```
+---
 
-![browser](images/1.png)
+## Credits
 
-### Upscale 2x with ImageMagick Lanczo4 Filter
+- [waifu2x-ncnn-vulkan](https://github.com/nihui/waifu2x-ncnn-vulkan) by nihui
+- [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan) by xinntao
+- [Real-CUGAN](https://github.com/bilibili/ailab/tree/main/Real-CUGAN) by bilibili
+- [Anime4KCPP](https://github.com/TianZerL/Anime4KCPP) by TianZerL
+- [GMFSS_Fortuna](https://github.com/98mxr/GMFSS_Fortuna) by 98mxr
+- [ncnn](https://github.com/Tencent/ncnn) by Tencent
+- [FFmpeg](https://ffmpeg.org/)
 
-```shell
-convert origin.jpg -filter Lanczos -resize 200% output.png
-```
+## License
 
-![browser](images/4.png)
-
-### Upscale 2x with waifu2x noise=2 scale=2
-
-```shell
-waifu2x-ncnn-vulkan.exe -i origin.jpg -o output.png -n 2 -s 2
-```
-
-![waifu2x](images/2.png)
-
-## Original waifu2x Project
-
-- https://github.com/nagadomi/waifu2x
-- https://github.com/lltcggie/waifu2x-caffe
-
-## Other Open-Source Code Used
-
-- https://github.com/Tencent/ncnn for fast neural network inference on ALL PLATFORMS
-- https://github.com/webmproject/libwebp for encoding and decoding Webp images on ALL PLATFORMS
-- https://github.com/libjpeg-turbo/libjpeg-turbo for encoding and decoding JPEG images on ALL PLATFORMS
-- https://github.com/pnggroup/libpng for encoding and decoding PNG images on ALL PLATFORMS
-- https://github.com/zlib-ng/zlib-ng for encoding and decoding PNG images on ALL PLATFORMS
-- https://github.com/tronkko/dirent for listing files in directory on Windows
+MIT
