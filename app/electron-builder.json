@@ -1,0 +1,55 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.animeupscaler.app",
+  "productName": "Anime Upscaler",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "!dist/**/*.map"
+  ],
+  "protocols": [
+    {
+      "name": "Anime Upscaler",
+      "schemes": ["animeupscaler"]
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "build/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false,
+    "deleteAppDataOnUninstall": false,
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico"
+  },
+  "mac": {
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "icon": "build/icon.icns",
+    "category": "public.app-category.graphics-design"
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      }
+    ],
+    "category": "Graphics",
+    "icon": "build/icons"
+  }
+}

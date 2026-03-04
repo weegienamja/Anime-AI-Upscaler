@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+app/dist/
+license-server/dist/
+
+# Binaries (large, platform-specific)
+bin/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Package locks (keep package-lock.json if desired)
+# package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
